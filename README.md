@@ -40,12 +40,16 @@ write the transcript.
 ## macOS app
 
 ```sh
-scripts/bundle-macos.sh               # target/release/bundle/Rusty Z.app (arm64)
+scripts/bundle-macos.sh               # target/release/bundle/Planetfall.app (arm64)
 scripts/bundle-macos.sh --universal   # arm64 + x86_64; needs the x86_64-apple-darwin target
 ```
 
 Story files in `stories/` are copied into the bundle (the script stops if there
-are none), so the app opens straight into the game wherever it lives; drag `Rusty Z.app` to `/Applications` to install it. The bundle
+are none), so the app opens straight into the game wherever it lives; drag
+`Planetfall.app` to `/Applications` to install it. Finder, the menu bar and
+the About box show Planetfall with Infocom's credit and the story's release
+and serial number; Rusty Z is credited underneath. To bundle another game,
+change `name` and `credit` at the top of the script. The bundle
 is signed ad hoc, which is enough on the Mac that built it. Copied to other
 Macs, it needs a Developer ID signature and notarization (or a right-click ▸
 Open past Gatekeeper). The icon is drawn by `scripts/make-icon.py` into
