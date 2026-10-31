@@ -60,13 +60,11 @@ fn find_default_story() -> Option<PathBuf> {
 }
 
 /// Story files are named all sorts of things (Planetfall's is `.zip`), so
-/// look at the version byte instead of the extension.
+/// look for a supported version byte instead of the extension.
 fn is_story_file(path: &std::path::Path) -> bool {
     use std::io::Read;
     let mut head = [0u8; 64];
-    std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut head)).is_ok()
-        && (1..=8).contains(&head[0])
-        && &head[..2] != b"PK"
+    std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut head)).is_ok() && (1..=3).contains(&head[0])
 }
 
 pub fn load_story(path: &std::path::Path) -> Result<Vm, String> {

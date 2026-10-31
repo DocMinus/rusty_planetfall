@@ -67,11 +67,17 @@ pub enum Event {
 }
 
 /// The status line shown at the top of the screen in versions 1 to 3.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusLine {
     pub location: String,
-    /// "Score: 10  Moves: 42" or "Time: 9:05 am".
-    pub right: String,
+    pub progress: Progress,
+}
+
+/// The right-hand side of the status line; the header says which kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Progress {
+    Score { score: i16, moves: u16 },
+    Time { hours: u16, minutes: u16 },
 }
 
 /// One thing for the front end to do, in order.

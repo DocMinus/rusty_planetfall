@@ -9,15 +9,10 @@ use crate::objects::Objects;
 use crate::quetzal::{self, SaveState, SavedFrame};
 use crate::rng::Rng;
 use crate::text;
-use crate::{Event, Output, Result, ScreenOp, StatusLine, ZError};
+use crate::{Event, Output, Progress, Result, ScreenOp, StatusLine, ZError};
 
 const STACK_LIMIT: usize = 32 * 1024;
 const FRAME_LIMIT: usize = 1024;
-
-/// Score-style stories whose "moves" global is really a clock (release, serial).
-/// Planetfall keeps its chronometer reading there, so label it "Time".
-const CLOCK_IN_MOVES: &[(u16, &str)] =
-    &[(20, "830708"), (26, "831014"), (29, "840118"), (37, "851003"), (39, "880501")];
 
 struct Frame {
     return_pc: usize,
@@ -95,14 +90,25 @@ impl Vm {
     // ---- Public API -------------------------------------------------------
 
     pub fn info(&self) -> StoryInfo {
-        let m = self.mem.original();
+        let (release, serial, checksum) = self.identity();
         StoryInfo {
             version: self.version,
-            release: u16::from_be_bytes([m[h::RELEASE], m[h::RELEASE + 1]]),
-            serial: String::from_utf8_lossy(&m[h::SERIAL..h::SERIAL + 6]).into_owned(),
-            checksum: u16::from_be_bytes([m[h::CHECKSUM], m[h::CHECKSUM + 1]]),
+            release,
+            serial: String::from_utf8_lossy(&serial).into_owned(),
+            checksum,
             file_length: self.file_length(),
         }
+    }
+
+    /// Release, serial and checksum from the original header: what a save
+    /// file must match.
+    fn identity(&self) -> (u16, [u8; 6], u16) {
+        let m = self.mem.original();
+        (
+            u16::from_be_bytes([m[h::RELEASE], m[h::RELEASE + 1]]),
+            m[h::SERIAL..h::SERIAL + 6].try_into().unwrap(),
+            u16::from_be_bytes([m[h::CHECKSUM], m[h::CHECKSUM + 1]]),
+        )
     }
 
     /// Tell the story how big the screen is, in characters.
@@ -122,13 +128,13 @@ impl Vm {
 
     /// True if the game has scripting (transcript) switched on.
     pub fn transcript_on(&self) -> bool {
-        self.mem.u8(h::FLAGS2).is_ok_and(|f| f & h::F2_TRANSCRIPT != 0)
+        self.mem.u16(h::FLAGS2).is_ok_and(|f| f & h::F2_TRANSCRIPT != 0)
     }
 
     /// Switch scripting off, e.g. when the user cancels the transcript file.
     pub fn stop_transcript(&mut self) {
-        if let Ok(f) = self.mem.u8(h::FLAGS2) {
-            let _ = self.mem.set_u8(h::FLAGS2, f & !h::F2_TRANSCRIPT);
+        if let Ok(f) = self.mem.u16(h::FLAGS2) {
+            let _ = self.mem.set_u16(h::FLAGS2, f & !h::F2_TRANSCRIPT);
         }
     }
 
@@ -219,7 +225,6 @@ impl Vm {
 
     /// Quetzal snapshot of the current state, with `pc` as the resume point.
     fn snapshot(&self, pc: usize) -> Vec<u8> {
-        let m = self.mem.original();
         let frames = self
             .frames
             .iter()
@@ -235,10 +240,11 @@ impl Vm {
                 }
             })
             .collect();
+        let (release, serial, checksum) = self.identity();
         let state = SaveState {
-            release: u16::from_be_bytes([m[h::RELEASE], m[h::RELEASE + 1]]),
-            serial: m[h::SERIAL..h::SERIAL + 6].try_into().unwrap(),
-            checksum: u16::from_be_bytes([m[h::CHECKSUM], m[h::CHECKSUM + 1]]),
+            release,
+            serial,
+            checksum,
             pc,
             dynamic: self.mem.dynamic().to_vec(),
             frames,
@@ -248,11 +254,10 @@ impl Vm {
 
     fn load_state(&mut self, data: &[u8]) -> Result<()> {
         let s = quetzal::read(data, self.mem.original_dynamic())?;
-        let info = self.info();
-        if s.release != info.release || s.serial != info.serial.as_bytes() || s.checksum != info.checksum {
+        if (s.release, s.serial, s.checksum) != self.identity() {
             return Err(ZError::BadSave("this save file is for a different game or release".into()));
         }
-        let flags2 = self.mem.u8(h::FLAGS2)?;
+        let flags2 = self.mem.u16(h::FLAGS2)?;
         self.mem.set_dynamic(&s.dynamic);
         self.stack.clear();
         self.frames.clear();
@@ -268,7 +273,16 @@ impl Vm {
         }
         self.pc = s.pc;
         self.keep_flags2(flags2)?;
+        self.reset_output();
         self.write_header()
+    }
+
+    /// Back to one full-screen lower window with output going to the screen.
+    fn reset_output(&mut self) {
+        self.window = 0;
+        self.screen_output = true;
+        self.memory_streams.clear();
+        self.output.ops.push(ScreenOp::Split(0));
     }
 
     // ---- Header -----------------------------------------------------------
@@ -295,14 +309,14 @@ impl Vm {
     }
 
     /// Restart and restore keep the transcript and fixed-pitch bits.
-    fn keep_flags2(&mut self, old: u8) -> Result<()> {
+    fn keep_flags2(&mut self, old: u16) -> Result<()> {
         let keep = h::F2_TRANSCRIPT | h::F2_FIXED_PITCH;
-        let f2 = self.mem.u8(h::FLAGS2)?;
-        self.mem.set_u8(h::FLAGS2, (f2 & !keep) | (old & keep))
+        let f2 = self.mem.u16(h::FLAGS2)?;
+        self.mem.set_u16(h::FLAGS2, (f2 & !keep) | (old & keep))
     }
 
     fn restart(&mut self) -> Result<()> {
-        let flags2 = self.mem.u8(h::FLAGS2)?;
+        let flags2 = self.mem.u16(h::FLAGS2)?;
         let original = self.mem.original_dynamic().to_vec();
         self.mem.set_dynamic(&original);
         self.keep_flags2(flags2)?;
@@ -310,9 +324,7 @@ impl Vm {
         self.stack.clear();
         self.frames = vec![Frame::main()];
         self.pc = self.mem.u16(h::INITIAL_PC)? as usize;
-        self.window = 0;
-        self.screen_output = true;
-        self.memory_streams.clear();
+        self.reset_output();
         self.output.ops.push(ScreenOp::ClearAll);
         Ok(())
     }
@@ -320,7 +332,8 @@ impl Vm {
     /// Does the story file match its header checksum?
     pub fn verify(&self) -> bool {
         let m = self.mem.original();
-        let sum = m[0x40..self.file_length()].iter().fold(0u16, |s, &b| s.wrapping_add(b as u16));
+        let body = m.get(0x40..self.file_length()).unwrap_or_default();
+        let sum = body.iter().fold(0u16, |s, &b| s.wrapping_add(b as u16));
         sum == u16::from_be_bytes([m[h::CHECKSUM], m[h::CHECKSUM + 1]])
     }
 
@@ -494,20 +507,12 @@ impl Vm {
     fn show_status(&mut self) -> Result<()> {
         let location = self.object_name(self.mem.u16(self.global_addr(16))?)?;
         let (a, b) = (self.mem.u16(self.global_addr(17))?, self.mem.u16(self.global_addr(18))?);
-        let right = if self.mem.u8(h::FLAGS1)? & h::F1_TIME_GAME != 0 {
-            let (hour, ampm) = match a % 24 {
-                0 => (12, "am"),
-                h @ 1..=11 => (h, "am"),
-                12 => (12, "pm"),
-                h => (h - 12, "pm"),
-            };
-            format!("Time: {hour}:{b:02} {ampm}")
+        let progress = if self.mem.u8(h::FLAGS1)? & h::F1_TIME_GAME != 0 {
+            Progress::Time { hours: a, minutes: b }
         } else {
-            let info = self.info();
-            let label = if CLOCK_IN_MOVES.contains(&(info.release, info.serial.as_str())) { "Time" } else { "Moves" };
-            format!("Score: {}  {label}: {}", a as i16, b)
+            Progress::Score { score: a as i16, moves: b }
         };
-        self.output.status = Some(StatusLine { location, right });
+        self.output.status = Some(StatusLine { location, progress });
         Ok(())
     }
 
@@ -516,9 +521,9 @@ impl Vm {
             1 => self.screen_output = true,
             -1 => self.screen_output = false,
             2 | -2 => {
-                let f2 = self.mem.u8(h::FLAGS2)?;
+                let f2 = self.mem.u16(h::FLAGS2)?;
                 let f2 = if n > 0 { f2 | h::F2_TRANSCRIPT } else { f2 & !h::F2_TRANSCRIPT };
-                self.mem.set_u8(h::FLAGS2, f2)?;
+                self.mem.set_u16(h::FLAGS2, f2)?;
             }
             3 if self.memory_streams.len() < 16 => self.memory_streams.push((table as usize, Vec::new())),
             -3 => {

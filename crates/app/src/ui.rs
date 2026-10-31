@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use eframe::egui::{self, Align2, Color32, FontId, Key, Pos2, Rect, Vec2, ViewportCommand};
 use zmachine::{Event, Vm};
 
-use crate::screen::{Screen, status_text, wrap};
+use crate::screen::{Screen, moves_label, status_text, wrap};
 use crate::settings::{DEFAULT_FONT_SIZE, Settings};
 
 const PAD: f32 = 8.0;
@@ -46,6 +46,7 @@ struct App {
     settings: Settings,
     vm: Option<Vm>,
     story_name: String,
+    moves_label: &'static str,
     seed: Option<u64>,
     screen: Screen,
     mode: Mode,
@@ -72,6 +73,7 @@ impl App {
         let mut app = Self {
             vm: None,
             story_name: String::new(),
+            moves_label: "Moves",
             seed,
             screen: Screen::default(),
             mode: Mode::NoStory,
@@ -103,6 +105,7 @@ impl App {
                     vm.seed_random(seed);
                 }
                 vm.set_screen_size(self.grid.0 as u16, self.grid.1 as u16);
+                self.moves_label = moves_label(&vm.info());
                 self.vm = Some(vm);
                 self.screen = Screen::default();
                 self.story_name = path.file_stem().map_or_else(String::new, |s| s.to_string_lossy().into_owned());
@@ -250,7 +253,9 @@ impl App {
                     Key::Q if !cfg!(target_os = "macos") => ctx.send_viewport_cmd(ViewportCommand::Close),
                     _ => {}
                 },
-                egui::Event::Key { pressed: true, .. } if self.mode == Mode::Ended => {
+                // Ignore auto-repeat so a held Enter doesn't close before the
+                // final message can be read.
+                egui::Event::Key { pressed: true, repeat: false, .. } if self.mode == Mode::Ended => {
                     ctx.send_viewport_cmd(ViewportCommand::Close);
                 }
                 egui::Event::Key { key, pressed: true, .. } if self.mode == Mode::Input => {
@@ -328,7 +333,7 @@ impl App {
         );
         painter.rect_filled(status_rect, 0.0, fg);
         if let Some(status) = &self.screen.status {
-            text(0, &status_text(status, cols), bg);
+            text(0, &status_text(status, self.moves_label, cols), bg);
         }
 
         // Upper window.

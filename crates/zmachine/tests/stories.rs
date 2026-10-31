@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use zmachine::{Event, Vm};
+use zmachine::{Event, Progress, ScreenOp, Vm};
 
 fn repo_file(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel)
@@ -64,7 +64,9 @@ fn planetfall_opening() {
     let status = vm.take_output().status.expect("status line updated");
     assert_eq!(status.location, "Escape Pod");
     // Strapping into the webbing scores 3; Planetfall's "moves" global is its clock.
-    assert!(status.right.starts_with("Score: 3  Time: 49"), "{}", status.right);
+    let Progress::Score { score, moves } = status.progress else { panic!("score game") };
+    assert_eq!(score, 3);
+    assert!((4900..5100).contains(&moves), "{moves}");
 }
 
 #[test]
@@ -85,6 +87,8 @@ fn planetfall_save_and_restore() {
     vm.provide_line("restore").unwrap();
     assert_eq!(vm.run().unwrap(), Event::Restore);
     vm.provide_restore(Some(&data)).unwrap();
+    // Restoring returns to a single full-screen window.
+    assert!(vm.take_output().ops.contains(&ScreenOp::Split(0)));
     let text = play(&mut vm, &["inventory"]);
     assert!(text.contains("Ok."), "{text}");
     assert!(text.contains("scrub brush"), "brush is back in the inventory: {text}");
@@ -103,6 +107,19 @@ fn planetfall_restart() {
     let text = play(&mut vm, &["restart", "y", "inventory"]);
     assert!(text.contains("Another routine day of drudgery"), "{text}");
     assert!(text.matches("scrub brush").count() >= 1);
+}
+
+#[test]
+fn planetfall_script_turns_on_transcript() {
+    let Some(mut vm) = load(PLANETFALL) else { return };
+    play(&mut vm, &[]);
+    vm.provide_line("script").unwrap();
+    vm.run().unwrap();
+    assert!(vm.transcript_on());
+    assert!(vm.take_output().transcript.contains("Here begins a transcript"));
+    vm.provide_line("unscript").unwrap();
+    vm.run().unwrap();
+    assert!(!vm.transcript_on());
 }
 
 #[test]

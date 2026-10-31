@@ -2,9 +2,12 @@
 //! for the upper window, and the status line. Text is stored as paragraphs
 //! and word-wrapped to the current width when drawn, so resizing reflows.
 
-use zmachine::{Output, ScreenOp, StatusLine};
+use zmachine::header::StoryInfo;
+use zmachine::{Output, Progress, ScreenOp, StatusLine};
 
 const MAX_PARAGRAPHS: usize = 5000;
+/// Trim this many at once so the front of the Vec isn't shifted on every line.
+const TRIM_PARAGRAPHS: usize = 1000;
 
 pub struct Screen {
     /// Lower-window paragraphs; the last one is the line still being printed.
@@ -54,7 +57,7 @@ impl Screen {
             self.paras.push(part.to_string());
         }
         if self.paras.len() > MAX_PARAGRAPHS {
-            let excess = self.paras.len() - MAX_PARAGRAPHS;
+            let excess = self.paras.len() - MAX_PARAGRAPHS + TRIM_PARAGRAPHS;
             self.paras.drain(..excess);
             self.dropped += excess;
         }
@@ -137,10 +140,32 @@ pub fn wrap(para: &str, cols: usize) -> Vec<String> {
     lines
 }
 
+/// Score-style stories whose "moves" global is really a clock (release, serial).
+/// Planetfall keeps its chronometer reading there, so it is labelled "Time".
+const CLOCK_IN_MOVES: &[(u16, &str)] =
+    &[(20, "830708"), (26, "831014"), (29, "840118"), (37, "851003"), (39, "880501")];
+
+/// The label for the "moves" number on this story's status line.
+pub fn moves_label(info: &StoryInfo) -> &'static str {
+    if CLOCK_IN_MOVES.contains(&(info.release, info.serial.as_str())) { "Time" } else { "Moves" }
+}
+
 /// The status line padded to exactly `cols` characters.
-pub fn status_text(status: &StatusLine, cols: usize) -> String {
+pub fn status_text(status: &StatusLine, moves_label: &str, cols: usize) -> String {
     let left: String = format!(" {}", status.location);
-    let right = format!("{}   ", status.right);
+    let progress = match status.progress {
+        Progress::Score { score, moves } => format!("Score: {score}  {moves_label}: {moves}"),
+        Progress::Time { hours, minutes } => {
+            let (hour, ampm) = match hours % 24 {
+                0 => (12, "am"),
+                h @ 1..=11 => (h, "am"),
+                12 => (12, "pm"),
+                h => (h - 12, "pm"),
+            };
+            format!("Time: {hour}:{minutes:02} {ampm}")
+        }
+    };
+    let right = format!("{progress}   ");
     let gap = cols.saturating_sub(left.chars().count() + right.chars().count()).max(1);
     let line = format!("{left}{}{right}", " ".repeat(gap));
     let mut line: String = line.chars().take(cols).collect();
@@ -183,10 +208,25 @@ mod tests {
 
     #[test]
     fn status_line_is_padded() {
-        let st = StatusLine { location: "Deck Nine".into(), right: "Score: 0  Moves: 1".into() };
-        let line = status_text(&st, 40);
+        let st = StatusLine { location: "Deck Nine".into(), progress: Progress::Score { score: 0, moves: 1 } };
+        let line = status_text(&st, "Moves", 40);
         assert_eq!(line.chars().count(), 40);
         assert!(line.starts_with(" Deck Nine"));
-        assert!(line.trim_end().ends_with("Moves: 1"));
+        assert!(line.trim_end().ends_with("Score: 0  Moves: 1"));
+        let st = StatusLine { location: "Bridge".into(), progress: Progress::Time { hours: 13, minutes: 5 } };
+        assert!(status_text(&st, "Moves", 40).trim_end().ends_with("Time: 1:05 pm"));
+    }
+
+    #[test]
+    fn planetfall_moves_are_time() {
+        let info = |release, serial: &str| StoryInfo {
+            version: 3,
+            release,
+            serial: serial.into(),
+            checksum: 0,
+            file_length: 0,
+        };
+        assert_eq!(moves_label(&info(39, "880501")), "Time");
+        assert_eq!(moves_label(&info(88, "840726")), "Moves");
     }
 }

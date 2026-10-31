@@ -26,9 +26,9 @@ pub const F1_NO_STATUS_LINE: u8 = 0x10;
 pub const F1_SPLIT_AVAILABLE: u8 = 0x20;
 pub const F1_VARIABLE_PITCH_DEFAULT: u8 = 0x40;
 
-/// Flags 2.
-pub const F2_TRANSCRIPT: u8 = 0x01;
-pub const F2_FIXED_PITCH: u8 = 0x02;
+/// Flags 2 is a word: these bits are in its low byte, at 0x11.
+pub const F2_TRANSCRIPT: u16 = 0x0001;
+pub const F2_FIXED_PITCH: u16 = 0x0002;
 
 /// Summary of a story file's identity, as shown by `--dump`.
 #[derive(Debug, Clone, PartialEq, Eq)]
