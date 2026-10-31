@@ -27,7 +27,9 @@ pub fn run(story: Option<PathBuf>, seed: Option<u64>) -> Result<(), String> {
             .with_title("Rusty Z")
             .with_inner_size(estimate)
             .with_min_inner_size([320.0, 200.0])
-            .with_drag_and_drop(true),
+            .with_drag_and_drop(true)
+            // Without this eframe shows its own logo, even inside an .app bundle.
+            .with_icon(eframe::icon_data::from_png_bytes(include_bytes!("../../../assets/icon.png")).unwrap_or_default()),
         ..Default::default()
     };
     eframe::run_native("Rusty Z", options, Box::new(move |cc| Ok(Box::new(App::new(cc, story, seed)))))

@@ -186,6 +186,7 @@ mod tests {
         let the = encode(b"the", 3);
         story[0x60..0x64].copy_from_slice(&the);
         // z-chars: 1,0 (abbrev 0), 0 (space) | 6 ('a'), 5, 5 (end).
+        #[allow(clippy::identity_op)] // spelled out to match the z-chars above
         let w1: u16 = (1 << 10) | (0 << 5) | 0;
         let w2: u16 = 0x8000 | (6 << 10) | (5 << 5) | 5;
         story[0x40..0x42].copy_from_slice(&w1.to_be_bytes());

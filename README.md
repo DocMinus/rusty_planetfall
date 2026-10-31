@@ -37,6 +37,20 @@ In-game SAVE and RESTORE use native file dialogs and write standard Quetzal
 (`.qzl`) files, which other interpreters can read too. SCRIPT asks where to
 write the transcript.
 
+## macOS app
+
+```sh
+scripts/bundle-macos.sh               # target/release/bundle/Rusty Z.app (arm64)
+scripts/bundle-macos.sh --universal   # arm64 + x86_64; needs the x86_64-apple-darwin target
+```
+
+Story files in `stories/` are copied into the bundle (the script stops if there
+are none), so the app opens straight into the game wherever it lives; drag `Rusty Z.app` to `/Applications` to install it. The bundle
+is signed ad hoc, which is enough on the Mac that built it. Copied to other
+Macs, it needs a Developer ID signature and notarization (or a right-click ▸
+Open past Gatekeeper). The icon is drawn by `scripts/make-icon.py` into
+`assets/icon.png`.
+
 ## Layout
 
 - `crates/zmachine`: the VM, with no UI dependencies. `Vm::run()` returns an

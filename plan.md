@@ -38,5 +38,5 @@ correctness. Detailed plan: `~/.claude/plans/read-the-plan-md-and-graceful-glaci
 | 3. Tests: 25 unit tests, Planetfall opening/save/restore/restart, Czech V3 (349 passed, 0 failed) | done |
 | 4. Window: status line, reflowing scrollback, inline input, history, [MORE], scrollback | done, under manual test |
 | 5. Quetzal save/restore, restart, transcript, file dialogs, settings, drag & drop | done, under manual test |
-| 6. macOS `.app` bundle | next |
-| 7. Windows, then Linux (Wayland + X11) builds | later |
+| 6. macOS `.app` bundle | done (`scripts/bundle-macos.sh`, ad hoc signed) |
+| 7. Windows, then Linux (Wayland + X11) builds | next |
