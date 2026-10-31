@@ -6,9 +6,12 @@ A Z-machine interpreter (story file versions 1–3) in Rust, with a
 terminal-style window.
 Built to play Infocom's _Planetfall_ from its original story file. Source: (https://github.com/the-infocom-files/planetfall)
 
+> If you are looking for a port with (story/advancement) bugfixes and different GUI,
+> check out my other fan port: https://github.com/DocMinus/planetfall_evennia
+
 Existing interpreters such as [Frotz](https://davidgriffith.gitlab.io/frotz/) or
 [Gargoyle](https://github.com/garglk/garglk) already run Infocom story files; this is just a
-one-file app, with none of the original's bugs fixed.
+one-file app, made for fun, unfortunately with none of the original's bugs fixed.
 
 Other Z-machine story files (v1–3), like Zork, should run too (with some possible testing and adjustments).
 
