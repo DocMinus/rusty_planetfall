@@ -2820,7 +2820,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rustyz"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "eframe",
  "rfd",
@@ -4494,7 +4494,7 @@ checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
 
 [[package]]
 name = "zmachine"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
