@@ -20,3 +20,23 @@ First tartget: MacOS (silicone) then Windows (10/11) then Linux (Weyland?).
 ## Rust
 
 if rust is not installed, install it. Mac has brew available if that is easiest.
+
+## Direction (agreed 2026-10-31)
+
+Instead of re-writing the game's logic in Rust, we build **Rusty Z**: a native Rust
+Z-machine interpreter that runs the original Planetfall story file (Release 39,
+`.planetfall_historic_source/planetfall.zip` is that V3 story file) unchanged.
+Consequence: bugs in the game's own logic stay as shipped; we own interpreter
+correctness. Detailed plan: `~/.claude/plans/read-the-plan-md-and-graceful-glacier.md`.
+
+## Status
+
+| Milestone | State |
+|---|---|
+| 1. Toolchain (rustup via brew, Rust 1.99), workspace, header/memory/text, `--dump` | done |
+| 2. Decoder, all V1–V3 opcodes, objects, dictionary, headless mode | done |
+| 3. Tests: 25 unit tests, Planetfall opening/save/restore/restart, Czech V3 (349 passed, 0 failed) | done |
+| 4. Window: status line, reflowing scrollback, inline input, history, [MORE], scrollback | done, under manual test |
+| 5. Quetzal save/restore, restart, transcript, file dialogs, settings, drag & drop | done, under manual test |
+| 6. macOS `.app` bundle | next |
+| 7. Windows, then Linux (Wayland + X11) builds | later |

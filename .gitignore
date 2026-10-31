@@ -3,3 +3,7 @@
 *.z3
 *.z5
 .DS_Store
+target/
+testdata/
+stories/*
+!stories/README.md

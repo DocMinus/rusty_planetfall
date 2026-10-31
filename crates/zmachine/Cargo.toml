@@ -1,0 +1,9 @@
+[package]
+name = "zmachine"
+description = "A Z-machine (versions 1-3) virtual machine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror = "2.0.21"
