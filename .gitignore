@@ -6,4 +6,5 @@
 target/
 testdata/
 stories/*
+!stories/planetfall-r39.z3
 !stories/README.md
