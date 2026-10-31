@@ -20,6 +20,10 @@ cargo run --release
 
 Building, the macOS app, keys and tests: [INSTALL.md](INSTALL.md).
 
+## Resources: Maps and Walkthroughs
+
+A collections of spread out web resources can be found in the folder: [planetfall_resources/](planetfall_resources/)
+
 ## License
 
 Rusty Z is MIT-licensed, see [LICENSE](LICENSE). That covers the interpreter
